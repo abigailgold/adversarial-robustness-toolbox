@@ -98,7 +98,10 @@ class AdversarialPatchNumpy(EvasionAttack):
             "batch_size": batch_size,
         }
         self.set_params(**kwargs)
-        self.patch = None
+        mean_value = (
+            self.estimator.clip_values[1] - self.estimator.clip_values[0]
+        ) / 2.0 + self.estimator.clip_values[0]
+        self.patch = np.ones(shape=self.estimator.input_shape).astype(np.float32) * mean_value
 
     def generate(self, x, y=None, **kwargs):
         """
@@ -118,11 +121,6 @@ class AdversarialPatchNumpy(EvasionAttack):
                 "Feature vectors detected. The adversarial patch can only be applied to data with spatial "
                 "dimensions."
             )
-
-        mean_value = (
-            self.estimator.clip_values[1] - self.estimator.clip_values[0]
-        ) / 2.0 + self.estimator.clip_values[0]
-        self.patch = np.ones(shape=self.estimator.input_shape).astype(np.float32) * mean_value
 
         y_target = check_and_transform_label_format(labels=y, nb_classes=self.estimator.nb_classes)
 
