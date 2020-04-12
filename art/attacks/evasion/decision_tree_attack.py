@@ -41,6 +41,8 @@ class DecisionTreeAttack(EvasionAttack):
 
     attack_params = ["classifier", "offset"]
 
+    _estimator_requirements = (ScikitlearnDecisionTreeClassifier,)
+
     def __init__(self, classifier, offset=0.001):
         """
         :param classifier: A trained model of type scikit decision tree.
@@ -50,8 +52,6 @@ class DecisionTreeAttack(EvasionAttack):
         """
         super(DecisionTreeAttack, self).__init__(estimator=classifier)
 
-        if not isinstance(classifier, ScikitlearnDecisionTreeClassifier):
-            raise TypeError("Model must be a decision tree model!")
         params = {"offset": offset}
         self.set_params(**params)
 
@@ -135,9 +135,7 @@ class DecisionTreeAttack(EvasionAttack):
                     if y is None:
                         adv_path = self._df_subtree(self.estimator.get_left_child(ancestor), legitimate_class)
                     else:
-                        adv_path = self._df_subtree(
-                            self.estimator.get_left_child(ancestor), legitimate_class, y[index]
-                        )
+                        adv_path = self._df_subtree(self.estimator.get_left_child(ancestor), legitimate_class, y[index])
                 position = position - 1  # we are going the decision path upwards
             adv_path.append(ancestor)
             # we figured out which is the way to the target, now perturb

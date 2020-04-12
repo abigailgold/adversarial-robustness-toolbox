@@ -29,11 +29,10 @@ import random
 import numpy as np
 from scipy.ndimage import rotate, shift, zoom
 
-from art.estimators.estimator import NeuralNetworkMixin
-from art.estimators.classification.classifier import ClassGradientsMixin
+from art.estimators.estimator import BaseEstimator, NeuralNetworkMixin
+from art.estimators.classification.classifier import ClassifierMixin
 from art.attacks.attack import EvasionAttack
 from art.utils import check_and_transform_label_format
-from art.exceptions import EstimatorError
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +52,8 @@ class AdversarialPatchNumpy(EvasionAttack):
         "max_iter",
         "batch_size",
     ]
+
+    _estimator_requirements = (BaseEstimator, NeuralNetworkMixin, ClassifierMixin)
 
     def __init__(
         self,
@@ -86,8 +87,6 @@ class AdversarialPatchNumpy(EvasionAttack):
         :type batch_size: `int`
         """
         super(AdversarialPatchNumpy, self).__init__(estimator=classifier)
-        if not isinstance(classifier, NeuralNetworkMixin) or not isinstance(classifier, ClassGradientsMixin):
-            raise EstimatorError(self.__class__, [NeuralNetworkMixin, ClassGradientsMixin], classifier)
 
         kwargs = {
             "rotation_max": rotation_max,
@@ -98,9 +97,9 @@ class AdversarialPatchNumpy(EvasionAttack):
             "batch_size": batch_size,
         }
         self.set_params(**kwargs)
-        mean_value = (
-            self.estimator.clip_values[1] - self.estimator.clip_values[0]
-        ) / 2.0 + self.estimator.clip_values[0]
+        mean_value = (self.estimator.clip_values[1] - self.estimator.clip_values[0]) / 2.0 + self.estimator.clip_values[
+            0
+        ]
         self.patch = np.ones(shape=self.estimator.input_shape).astype(np.float32) * mean_value
 
     def generate(self, x, y=None, **kwargs):

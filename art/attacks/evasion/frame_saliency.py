@@ -28,12 +28,11 @@ import logging
 import numpy as np
 
 from art.config import ART_NUMPY_DTYPE
-from art.estimators.estimator import NeuralNetworkMixin
+from art.estimators.estimator import BaseEstimator, NeuralNetworkMixin
 from art.estimators.classification.classifier import ClassGradientsMixin
 from art.attacks.attack import EvasionAttack
 from art.attacks.evasion import ProjectedGradientDescent, BasicIterativeMethod, FastGradientMethod
 from art.utils import compute_success_array, get_labels_np_array, check_and_transform_label_format
-from art.exceptions import EstimatorError
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +47,8 @@ class FrameSaliencyAttack(EvasionAttack):
 
     method_list = ["iterative_saliency", "iterative_saliency_refresh", "one_shot"]
     attack_params = EvasionAttack.attack_params + ["attacker", "method", "frame_index", "batch_size"]
+
+    _estimator_requirements = (BaseEstimator, NeuralNetworkMixin, ClassGradientsMixin)
 
     def __init__(self, classifier, attacker, method="iterative_saliency", frame_index=1, batch_size=1):
         """
@@ -67,15 +68,8 @@ class FrameSaliencyAttack(EvasionAttack):
         :type batch_size: `int`
         """
         super(FrameSaliencyAttack, self).__init__(classifier)
-        if not isinstance(classifier, NeuralNetworkMixin) or not isinstance(classifier, ClassGradientsMixin):
-            raise EstimatorError(self.__class__, [NeuralNetworkMixin, ClassGradientsMixin], classifier)
 
-        kwargs = {
-            "attacker": attacker,
-            "method": method,
-            "frame_index": frame_index,
-            "batch_size": batch_size
-        }
+        kwargs = {"attacker": attacker, "method": method, "frame_index": frame_index, "batch_size": batch_size}
         self.set_params(**kwargs)
 
     def generate(self, x, y=None, **kwargs):
@@ -147,8 +141,9 @@ class FrameSaliencyAttack(EvasionAttack):
             # Update designated frames with adversarial perturbations:
             x_adv = np.swapaxes(x_adv, 1, self.frame_index)
             x_adv_new = np.swapaxes(x_adv_new, 1, self.frame_index)
-            x_adv[attack_failure, frames_to_perturb[:, i][attack_failure], ::] = \
-                x_adv_new[attack_failure, frames_to_perturb[:, i][attack_failure], ::]
+            x_adv[attack_failure, frames_to_perturb[:, i][attack_failure], ::] = x_adv_new[
+                attack_failure, frames_to_perturb[:, i][attack_failure], ::
+            ]
             x_adv = np.swapaxes(x_adv, 1, self.frame_index)
             x_adv_new = np.swapaxes(x_adv_new, 1, self.frame_index)
 
@@ -175,7 +170,7 @@ class FrameSaliencyAttack(EvasionAttack):
     def _compute_frames_to_perturb(self, x_adv, targets, disregard=None):
         saliency_score = self.estimator.loss_gradient(x_adv, targets)
         saliency_score = np.swapaxes(saliency_score, 1, self.frame_index)
-        saliency_score = saliency_score.reshape((saliency_score.shape[:2] + (np.prod(saliency_score.shape[2:]), )))
+        saliency_score = saliency_score.reshape((saliency_score.shape[:2] + (np.prod(saliency_score.shape[2:]),)))
         saliency_score = np.mean(np.abs(saliency_score), axis=2)
 
         if disregard is not None:
@@ -196,11 +191,15 @@ class FrameSaliencyAttack(EvasionAttack):
         """
         super(FrameSaliencyAttack, self).set_params(**kwargs)
 
-        if not isinstance(self.attacker, ProjectedGradientDescent) and \
-                not isinstance(self.attacker, BasicIterativeMethod) and \
-                not isinstance(self.attacker, FastGradientMethod):
-            raise ValueError("The attacker must be either of class 'ProjectedGradientDescent', \
-                              'BasicIterativeMethod' or 'FastGradientMethod'")
+        if (
+            not isinstance(self.attacker, ProjectedGradientDescent)
+            and not isinstance(self.attacker, BasicIterativeMethod)
+            and not isinstance(self.attacker, FastGradientMethod)
+        ):
+            raise ValueError(
+                "The attacker must be either of class 'ProjectedGradientDescent', \
+                              'BasicIterativeMethod' or 'FastGradientMethod'"
+            )
 
         if self.method not in self.method_list:
             raise ValueError("Method must be either 'iterative_saliency', 'iterative_saliency_refresh' or 'one_shot'.")

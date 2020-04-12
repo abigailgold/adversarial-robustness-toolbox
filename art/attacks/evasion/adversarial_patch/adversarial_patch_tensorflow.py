@@ -29,9 +29,8 @@ import math
 import numpy as np
 
 from art.attacks.attack import EvasionAttack
-from art.exceptions import EstimatorError
-from art.estimators.estimator import NeuralNetworkMixin
-from art.estimators.classification.classifier import ClassGradientsMixin
+from art.estimators.estimator import BaseEstimator, NeuralNetworkMixin
+from art.estimators.classification.classifier import ClassifierMixin
 from art.utils import check_and_transform_label_format
 
 logger = logging.getLogger(__name__)
@@ -53,6 +52,8 @@ class AdversarialPatchTensorFlowV2(EvasionAttack):
         "batch_size",
         "patch_shape",
     ]
+
+    _estimator_requirements = (BaseEstimator, NeuralNetworkMixin, ClassifierMixin)
 
     def __init__(
         self,
@@ -93,8 +94,6 @@ class AdversarialPatchTensorFlowV2(EvasionAttack):
         import tensorflow as tf
 
         super(AdversarialPatchTensorFlowV2, self).__init__(estimator=classifier)
-        if not isinstance(classifier, NeuralNetworkMixin) or not isinstance(classifier, ClassGradientsMixin):
-            raise EstimatorError(self.__class__, [NeuralNetworkMixin, ClassGradientsMixin], classifier)
 
         kwargs = {
             "rotation_max": rotation_max,
@@ -116,9 +115,9 @@ class AdversarialPatchTensorFlowV2(EvasionAttack):
             self.estimator.postprocessing_defences is not None or self.estimator.postprocessing_defences != []
         ), "Framework-specific implementation of Adversarial Patch attack does not yet support postprocessing defences."
 
-        mean_value = (
-            self.estimator.clip_values[1] - self.estimator.clip_values[0]
-        ) / 2.0 + self.estimator.clip_values[0]
+        mean_value = (self.estimator.clip_values[1] - self.estimator.clip_values[0]) / 2.0 + self.estimator.clip_values[
+            0
+        ]
         initial_value = np.ones(self.patch_shape) * mean_value
         self._patch = tf.Variable(
             initial_value=initial_value,
@@ -260,7 +259,7 @@ class AdversarialPatchTensorFlowV2(EvasionAttack):
 
         y = check_and_transform_label_format(labels=y, nb_classes=self.estimator.nb_classes)
 
-        shuffle = kwargs.get('shuffle', True)
+        shuffle = kwargs.get("shuffle", True)
 
         if shuffle:
             ds = (
