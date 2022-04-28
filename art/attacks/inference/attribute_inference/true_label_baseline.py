@@ -156,7 +156,6 @@ class AttributeInferenceBaselineTrueLabel(AttributeInferenceAttack):
             normalized_labels = normalized_labels.reshape(-1, 1)
         else:
             normalized_labels = check_and_transform_label_format(y, return_one_hot=True)
-        normalized_labels = check_and_transform_label_format(normalized_labels, return_one_hot=True)
         x_train = np.concatenate((np.delete(x, self.attack_feature, 1), normalized_labels), axis=1).astype(np.float32)
 
         # train attack model
@@ -193,7 +192,6 @@ class AttributeInferenceBaselineTrueLabel(AttributeInferenceAttack):
             normalized_labels = normalized_labels.reshape(-1, 1)
         else:
             normalized_labels = check_and_transform_label_format(y, return_one_hot=True)
-        normalized_labels = check_and_transform_label_format(normalized_labels, return_one_hot=True)
         x_test = np.concatenate((x, normalized_labels), axis=1).astype(np.float32)
 
         predictions = self.attack_model.predict(x_test).astype(np.float32)
